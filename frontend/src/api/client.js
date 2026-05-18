@@ -37,6 +37,10 @@ export const api = {
   deleteStudent: (id) =>
     request(`/api/auth/student/${id}`, { method: "DELETE" }),
 
+  // Students & courses (analytics)
+  students: () => request("/api/students"),
+  courses: () => request("/api/courses"),
+
   // Admin
   adminStudents: () => request("/api/admin/students"),
   adminStudentReport: (id) => request(`/api/admin/students/${id}/report`),
@@ -49,6 +53,7 @@ export const api = {
       body: JSON.stringify({ student_id: studentId, answers }),
     }),
   studentResults: (studentId) => request(`/api/quizzes/results/student/${studentId}`),
+  quizResults: (studentId) => request(`/api/quizzes/results/student/${studentId}`),
   resultDetail: (resultId) => request(`/api/quizzes/results/${resultId}/detail`),
 
   // Recommendations

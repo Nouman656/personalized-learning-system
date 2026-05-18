@@ -19,16 +19,17 @@ export function useAnalytics(selectedStudentId) {
     setError(null);
 
     try {
-      const [students, courses, quizzes] = await Promise.all([
-        api.students(),
-        api.courses(),
-        api.quizzes(),
+      const [students, courses, availableQuiz] = await Promise.all([
+        api.adminStudents().catch(() => api.students()),
+        api.courses().catch(() => []),
+        api.availableQuiz().catch(() => null),
       ]);
+      const quizzes = availableQuiz ? [availableQuiz] : [];
 
       const studentResults = await Promise.all(
         students.map(async (s) => {
           const [results, weakTopics, recommendations] = await Promise.all([
-            api.quizResults(s.id).catch(() => []),
+            api.studentResults(s.id).catch(() => []),
             api.weakTopics(s.id).catch(() => []),
             api.recommendations(s.id).catch(() => []),
           ]);

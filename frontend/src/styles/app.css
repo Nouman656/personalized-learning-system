@@ -129,6 +129,10 @@
   padding: 1.5rem;
 }
 
+.app-page--wide {
+  max-width: 1400px;
+}
+
 .app-header {
   display: flex;
   justify-content: space-between;
@@ -293,4 +297,10 @@
   .login-page { grid-template-columns: 1fr; }
   .role-grid { grid-template-columns: 1fr; }
   .dashboard-grid, .admin-layout { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 900px) {
+  .app-page--wide .charts-grid {
+    grid-template-columns: 1fr;
+  }
 }

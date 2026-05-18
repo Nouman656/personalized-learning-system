@@ -68,6 +68,38 @@ export function buildRecommendationStats(students, recommendationsByStudent) {
   });
 }
 
+/** Single-student recommendation read/unread summary for charts. */
+export function buildStudentRecommendationSummary(recommendations) {
+  const list = recommendations || [];
+  const unread = list.filter((r) => !r.is_read).length;
+  return [
+    {
+      name: "You",
+      total: list.length,
+      unread,
+      read: list.length - unread,
+    },
+  ];
+}
+
+/** AI insight values for a logged-in student dashboard. */
+export function buildStudentInsights(results, weakTopics, recommendations) {
+  const recs = recommendations || [];
+  const weak = weakTopics || [];
+  const mostWeak = findMostWeakTopic(weak);
+  const unread = recs.filter((r) => !r.is_read).length;
+
+  return {
+    avgPerformance: computeAveragePerformance(results),
+    mostWeakTopic: mostWeak?.topic_name ?? "None",
+    mostWeakScore: mostWeak ? `${mostWeak.average_score}%` : "—",
+    weakCount: weak.length,
+    totalRecs: recs.length,
+    unreadRecs: unread,
+    attemptCount: results?.length ?? 0,
+  };
+}
+
 /** Student progress line chart — scores over time. */
 export function buildStudentProgressData(results) {
   return (results || [])
