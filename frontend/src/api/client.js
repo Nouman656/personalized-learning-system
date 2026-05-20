@@ -1,4 +1,16 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+function resolveApiBase() {
+  const configured = import.meta.env.VITE_API_URL?.trim();
+  if (configured) return configured.replace(/\/+$/, "");
+
+  // Keep backend host aligned with the frontend host to avoid localhost/127.0.0.1 CORS mismatches.
+  if (typeof window !== "undefined" && window.location?.hostname) {
+    return `${window.location.protocol}//${window.location.hostname}:8000`;
+  }
+
+  return "http://127.0.0.1:8000";
+}
+
+const API_BASE = resolveApiBase();
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -17,7 +29,12 @@ async function request(path, options = {}) {
     throw new Error(detail);
   }
   if (response.status === 204) return null;
-  return response.json();
+
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+  return response.text();
 }
 
 export const api = {

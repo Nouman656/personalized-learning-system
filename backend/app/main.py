@@ -10,6 +10,7 @@ AI Final Semester Project backend providing:
 
 import os
 from contextlib import asynccontextmanager
+from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -27,9 +28,38 @@ APP_VERSION = os.getenv("APP_VERSION", "1.0.0")
 # Parse comma-separated CORS origins from environment
 _cors_raw = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173",
+    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173",
 )
-CORS_ORIGINS = [origin.strip() for origin in _cors_raw.split(",") if origin.strip()]
+
+
+def _expand_loopback_origins(origins: list[str]) -> list[str]:
+    """Mirror localhost/127.0.0.1 origins to prevent dev-host mismatch issues."""
+    normalized: list[str] = []
+    seen = set()
+
+    def _add(origin: str) -> None:
+        if origin and origin not in seen:
+            seen.add(origin)
+            normalized.append(origin)
+
+    for origin in origins:
+        clean = origin.strip()
+        if not clean:
+            continue
+
+        _add(clean)
+        parsed = urlsplit(clean)
+        if parsed.hostname not in {"localhost", "127.0.0.1"}:
+            continue
+
+        port = f":{parsed.port}" if parsed.port else ""
+        host_variant = "127.0.0.1" if parsed.hostname == "localhost" else "localhost"
+        _add(f"{parsed.scheme}://{host_variant}{port}")
+
+    return normalized
+
+
+CORS_ORIGINS = _expand_loopback_origins(_cors_raw.split(","))
 
 
 @asynccontextmanager

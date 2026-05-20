@@ -3,7 +3,7 @@ Seed script — Introduction to Programming course, 15 MCQ default quiz.
 
 Usage (from backend/):
     python app/seed_data.py
-    python app/seed_data.py --fresh   # delete DB and reseed
+    python app/seed_data.py --fresh   # drop tables and reseed
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parent.parent
 if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app.database import SessionLocal, engine, init_db  # noqa: E402
+from app.database import Base, SessionLocal, engine, init_db  # noqa: E402
 from app.models import (  # noqa: E402
     Course,
     LearningContent,
@@ -237,10 +237,9 @@ def seed(db):
 
 def main():
     fresh = "--fresh" in sys.argv
-    db_path = _BACKEND_ROOT / "learning_system.db"
-    if fresh and db_path.exists():
-        db_path.unlink()
-        print("Removed existing database for fresh seed.")
+    if fresh:
+        Base.metadata.drop_all(bind=engine)
+        print("Dropped existing PostgreSQL tables for fresh seed.")
 
     init_db()
     db = SessionLocal()
