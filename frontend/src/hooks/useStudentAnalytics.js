@@ -19,13 +19,14 @@ export function useStudentAnalytics(studentId) {
     setError(null);
 
     try {
-      const [results, weakTopics, recommendations] = await Promise.all([
+      const [results, weakTopics, recommendations, mlPredictions] = await Promise.all([
         api.studentResults(studentId).catch(() => []),
         api.weakTopics(studentId).catch(() => []),
         api.recommendations(studentId).catch(() => []),
+        api.mlPredictGet(studentId).catch(() => null),
       ]);
 
-      setData({ results, weakTopics, recommendations });
+      setData({ results, weakTopics, recommendations, mlPredictions });
     } catch (err) {
       setError(err.message || "Failed to load analytics");
       setData(null);

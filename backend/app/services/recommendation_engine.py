@@ -9,6 +9,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import LearningContent, Quiz, QuizResult, Recommendation, Topic
+from app.services.ml_service import get_ml_predicted_weak_topics
 
 WEAK_TOPIC_THRESHOLD = 60.0
 
@@ -158,12 +159,15 @@ def process_quiz_submission(
     weak_details: List[dict] = []
     rec_count = 0
 
+    handled_topic_ids: set[int] = set()
+
     for ts in topic_scores:
         if not ts.get("is_weak"):
             continue
         topic = db.query(Topic).filter(Topic.id == ts["topic_id"]).first()
         if not topic:
             continue
+        handled_topic_ids.add(topic.id)
         weak_names.append(topic.name)
         weak_details.append(ts)
         new_recs = create_recommendations_for_topic(
@@ -174,18 +178,96 @@ def process_quiz_submission(
         )
         rec_count += len(new_recs)
 
+    rec_count += _create_ml_recommendations(
+        db, student_id, handled_topic_ids, weak_names, weak_details
+    )
+
     return quiz_result, weak_names, rec_count, weak_details
+
+
+def _create_ml_recommendations(
+    db: Session,
+    student_id: int,
+    already_handled: set[int],
+    weak_names: List[str],
+    weak_details: List[dict],
+) -> int:
+    """
+    Add recommendations for ML-predicted weak topics not already covered by the 60% rule.
+    Keeps rule-based recommendations unchanged; ML augments borderline / early-risk topics.
+    """
+    try:
+        ml_weak = get_ml_predicted_weak_topics(db, student_id)
+    except Exception:
+        return 0
+
+    added = 0
+    for pred in ml_weak:
+        tid = pred["topic_id"]
+        if tid in already_handled:
+            continue
+        topic = db.query(Topic).filter(Topic.id == tid).first()
+        if not topic:
+            continue
+        already_handled.add(tid)
+        prob = pred.get("probability_weak", 0)
+        weak_names.append(topic.name)
+        weak_details.append(
+            {
+                "topic_id": tid,
+                "topic_name": topic.name,
+                "score": pred.get("topic_score", 0),
+                "is_weak": True,
+                "ml_predicted": True,
+            }
+        )
+        new_recs = create_recommendations_for_topic(
+            db,
+            student_id,
+            topic,
+            reason_prefix=(
+                f"ML model predicts you may need help on (confidence {prob:.0%})"
+            ),
+        )
+        added += len(new_recs)
+    return added
 
 
 def generate_recommendations_for_student(db: Session, student_id: int) -> Tuple[List[dict], List[Recommendation]]:
     weak_topics = get_weak_topics_for_student(db, student_id)
     all_created: List[Recommendation] = []
+    handled_ids: set[int] = set()
+
     for wt in weak_topics:
         topic = db.query(Topic).filter(Topic.id == wt["topic_id"]).first()
         if topic:
+            handled_ids.add(topic.id)
             all_created.extend(
                 create_recommendations_for_topic(
                     db, student_id, topic, reason_prefix="Your performance is below 60% on"
                 )
             )
+
+    try:
+        for pred in get_ml_predicted_weak_topics(db, student_id):
+            tid = pred["topic_id"]
+            if tid in handled_ids:
+                continue
+            topic = db.query(Topic).filter(Topic.id == tid).first()
+            if topic:
+                handled_ids.add(tid)
+                prob = pred.get("probability_weak", 0)
+                all_created.extend(
+                    create_recommendations_for_topic(
+                        db,
+                        student_id,
+                        topic,
+                        reason_prefix=(
+                            f"ML model suggests extra practice (confidence {prob:.0%}) on"
+                        ),
+                    )
+                )
+    except Exception:
+        pass
+
     return weak_topics, all_created

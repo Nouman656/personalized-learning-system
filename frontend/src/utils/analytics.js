@@ -121,7 +121,7 @@ export function getRecommendationPriority(rec, weakTopicNames = new Set()) {
   const isWeakTopic = weakTopicNames.has(topicName);
   const isUrgent =
     !rec.is_read &&
-    (isWeakTopic || /below 60%|weak/i.test(rec.reason || ""));
+    (isWeakTopic || /below 60%|weak|ML model/i.test(rec.reason || ""));
 
   if (isUrgent) return "high";
   if (!rec.is_read) return "medium";
@@ -133,3 +133,30 @@ export const PRIORITY_META = {
   medium: { label: "Medium", className: "priority--medium", color: "#fbbf24" },
   low: { label: "Low", className: "priority--low", color: "#34d399" },
 };
+
+/** Bar chart data from ML predict API response. */
+export function buildMLPredictionChartData(mlResponse) {
+  const preds = mlResponse?.predictions || [];
+  return preds.map((p) => ({
+    name: p.topic_name,
+    probability: Math.round((p.probability_weak ?? 0) * 100),
+    topic_score: p.topic_score,
+    predicted_weak: p.predicted_weak,
+    rule_weak: p.rule_weak,
+  }));
+}
+
+/** Insight cards for ML section on student dashboard. */
+export function buildMLInsights(mlResponse) {
+  const preds = mlResponse?.predictions || [];
+  const mlWeak = preds.filter((p) => p.predicted_weak);
+  const highRisk = preds.filter((p) => p.probability_weak >= 0.7);
+  return {
+    modelTrained: mlResponse?.model_trained ?? false,
+    algorithm: mlResponse?.algorithm ?? "LogisticRegression",
+    mlWeakCount: mlWeak.length,
+    highRiskCount: highRisk.length,
+    totalTopics: preds.length,
+    message: mlResponse?.message ?? "",
+  };
+}

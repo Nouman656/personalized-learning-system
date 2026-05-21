@@ -76,4 +76,12 @@ export const api = {
   // Recommendations
   recommendations: (studentId) => request(`/api/recommendations/student/${studentId}`),
   weakTopics: (studentId) => request(`/api/recommendations/student/${studentId}/weak-topics`),
+
+  // Machine learning
+  mlStatus: () => request("/api/ml/status"),
+  mlTrain: () =>
+    request("/api/ml/train", { method: "POST" }),
+  mlPredict: (studentId) =>
+    request(`/api/ml/predict?student_id=${studentId}`, { method: "POST" }),
+  mlPredictGet: (studentId) => request(`/api/ml/predict/${studentId}`),
 };

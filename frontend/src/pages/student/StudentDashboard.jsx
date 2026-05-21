@@ -7,6 +7,7 @@ import QuizPerformanceChart from "../../components/charts/QuizPerformanceChart";
 import RecommendationStatsChart from "../../components/charts/RecommendationStatsChart";
 import StudentProgressChart from "../../components/charts/StudentProgressChart";
 import WeakTopicChart from "../../components/charts/WeakTopicChart";
+import MLPredictionChart from "../../components/charts/MLPredictionChart";
 import ErrorAlert from "../../components/ErrorAlert";
 import InsightCard from "../../components/InsightCard";
 import { DashboardSkeleton } from "../../components/skeletons/Skeleton";
@@ -17,6 +18,8 @@ import {
   buildStudentProgressData,
   buildStudentRecommendationSummary,
   buildWeakTopicDistribution,
+  buildMLPredictionChartData,
+  buildMLInsights,
 } from "../../utils/analytics";
 
 export default function StudentDashboard() {
@@ -77,7 +80,13 @@ export default function StudentDashboard() {
       weakTopics: buildWeakTopicDistribution(analytics.weakTopics),
       recSummary: buildStudentRecommendationSummary(analytics.recommendations),
       progress: buildStudentProgressData(analytics.results),
+      mlPredictions: buildMLPredictionChartData(analytics.mlPredictions),
     };
+  }, [analytics]);
+
+  const mlInsights = useMemo(() => {
+    if (!analytics?.mlPredictions) return null;
+    return buildMLInsights(analytics.mlPredictions);
   }, [analytics]);
 
   async function handleDeleteAccount() {
@@ -241,6 +250,21 @@ export default function StudentDashboard() {
                   <p className="chart-panel__sub">Performance trend over time</p>
                   <StudentProgressChart data={charts.progress} />
                 </motion.article>
+
+                <motion.article
+                  className="chart-panel chart-panel--wide"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <h3>ML weak-topic predictions</h3>
+                  <p className="chart-panel__sub">
+                    {mlInsights?.modelTrained
+                      ? `${mlInsights.algorithm} — probability of needing help (red = predicted weak)`
+                      : "Train model after more quiz attempts — using rule fallback"}
+                  </p>
+                  <MLPredictionChart data={charts.mlPredictions} />
+                </motion.article>
               </section>
             </>
           )}
@@ -263,6 +287,41 @@ export default function StudentDashboard() {
                     </li>
                   ))}
                 </ul>
+              )}
+            </section>
+
+            <section className="panel panel--ml">
+              <h3>ML Predictions</h3>
+              {!analytics?.mlPredictions?.predictions?.length ? (
+                <p className="muted">Complete a quiz to see ML weak-topic predictions.</p>
+              ) : (
+                <>
+                  {mlInsights && (
+                    <p className="muted panel__meta">
+                      {mlInsights.modelTrained
+                        ? `${mlInsights.mlWeakCount} topic(s) flagged by ML · ${mlInsights.highRiskCount} high risk`
+                        : mlInsights.message}
+                    </p>
+                  )}
+                  <ul className="ml-pred-list">
+                    {analytics.mlPredictions.predictions.map((p) => (
+                      <li
+                        key={p.topic_id}
+                        className={
+                          p.predicted_weak ? "ml-pred-item ml-pred-item--weak" : "ml-pred-item"
+                        }
+                      >
+                        <strong>{p.topic_name}</strong>
+                        <span>
+                          Score {p.topic_score}% · Weak prob{" "}
+                          {Math.round((p.probability_weak ?? 0) * 100)}%
+                          {p.predicted_weak ? " · Predicted weak" : ""}
+                          {p.rule_weak && !p.predicted_weak ? " · Rule: below 60%" : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
             </section>
 

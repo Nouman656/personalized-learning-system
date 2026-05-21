@@ -244,4 +244,48 @@ class HealthResponse(BaseModel):
     version: str
 
 
+# ----- Machine Learning -----
+
+
+class MLTopicPrediction(BaseModel):
+    topic_id: int
+    topic_name: str
+    course_id: int = 0
+    topic_score: float
+    probability_weak: float
+    predicted_weak: bool
+    rule_weak: bool
+    source: str = "ml_model"
+
+
+class MLPredictResponse(BaseModel):
+    student_id: int
+    model_trained: bool
+    algorithm: str
+    features: List[str]
+    predictions: List[MLTopicPrediction]
+    message: str = ""
+
+
+class MLTrainResponse(BaseModel):
+    success: bool
+    message: str
+    sample_count: int = 0
+    algorithm: str = "LogisticRegression"
+    features: List[str] = []
+    weak_samples: int = 0
+    strong_samples: int = 0
+    threshold: float = 60.0
+    prediction_threshold: float = 0.5
+
+
+class MLStatusResponse(BaseModel):
+    trained: bool
+    algorithm: str = "LogisticRegression"
+    features: List[str] = []
+    message: str = ""
+    sample_count: int = 0
+    model_path: Optional[str] = None
+
+
 StudentReportResponse.model_rebuild()

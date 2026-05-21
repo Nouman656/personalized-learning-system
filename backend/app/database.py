@@ -25,7 +25,7 @@ _default_db_url = (
 DATABASE_URL = os.getenv("DATABASE_URL", _default_db_url)
 
 
-def ensure_database_exists() -> None:
+def ensure_database_exists(timeout_seconds: int = 10) -> None:
     """Create target database if missing."""
     conn = psycopg2.connect(
         dbname="postgres",
@@ -33,6 +33,7 @@ def ensure_database_exists() -> None:
         password=DB_PASSWORD,
         host=DB_HOST,
         port=DB_PORT,
+        connect_timeout=timeout_seconds,
     )
     conn.autocommit = True
     try:
@@ -45,7 +46,7 @@ def ensure_database_exists() -> None:
         conn.close()
 
 
-def check_db_connection() -> None:
+def check_db_connection(timeout_seconds: int = 10) -> None:
     """Raise if DB connection fails."""
     with psycopg2.connect(
         dbname=DB_NAME,
@@ -53,16 +54,14 @@ def check_db_connection() -> None:
         password=DB_PASSWORD,
         host=DB_HOST,
         port=DB_PORT,
+        connect_timeout=timeout_seconds,
     ) as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT 1")
             cur.fetchone()
 
 
-ensure_database_exists()
-check_db_connection()
-
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args={"connect_timeout": 10})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -78,6 +77,7 @@ def get_db():
 def init_db():
     from app import models  # noqa: F401
 
+    ensure_database_exists()
     Base.metadata.create_all(bind=engine)
     with engine.begin() as conn:
         conn.execute(text("SELECT 1"))

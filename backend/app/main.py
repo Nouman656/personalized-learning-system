@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
-from app.routes import admin, auth, courses, quizzes, recommendations, students
+from app.routes import admin, auth, courses, ml, quizzes, recommendations, students
 from app.schemas import HealthResponse
 
 load_dotenv()
@@ -64,8 +64,19 @@ CORS_ORIGINS = _expand_loopback_origins(_cors_raw.split(","))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create database tables on startup."""
+    """Create database tables and train ML model when enough quiz data exists."""
     init_db()
+    try:
+        from app.database import SessionLocal
+        from app.services.ml_service import ensure_model_trained
+
+        db = SessionLocal()
+        try:
+            ensure_model_trained(db)
+        finally:
+            db.close()
+    except Exception:
+        pass
     yield
 
 
@@ -98,6 +109,7 @@ app.include_router(students.router, prefix="/api")
 app.include_router(courses.router, prefix="/api")
 app.include_router(quizzes.router, prefix="/api")
 app.include_router(recommendations.router, prefix="/api")
+app.include_router(ml.router, prefix="/api")
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
